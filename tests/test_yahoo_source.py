@@ -74,9 +74,16 @@ def test_ttm_falls_back_to_last_four_quarters():
     assert d.free_cash_flow.ttm is None  # trimestre manquant : pas de TTM inventé
 
 
-def test_unknown_ticker_gives_empty_data():
-    d = source_for(FakeTicker(info={})).fetch("ZZZZ")
-    assert d.revenue.ttm is None and d.revenue.annual == ()
+def test_no_data_at_all_raises():
+    # Ticker inconnu ou Yahoo injoignable : yfinance renvoie des tableaux vides.
+    with pytest.raises(DataSourceError, match="Aucune donnée financière reçue pour ZZZZ"):
+        source_for(FakeTicker(info={})).fetch("ZZZZ")
+
+
+def test_partial_data_is_kept():
+    t = FakeTicker(info={}, cashflow=frame({"Free Cash Flow": [10]}, ["2024-12-31"]))
+    d = source_for(t).fetch("X")
+    assert d.revenue.annual == () and d.free_cash_flow.latest_annual().value == 10
     assert d.currency is None
 
 

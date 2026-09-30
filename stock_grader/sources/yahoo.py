@@ -123,6 +123,14 @@ class YFinanceDataSource:
         except Exception as exc:  # réseau, API modifiée, etc.
             raise DataSourceError(f"Impossible de récupérer les données de {symbol} : {exc}") from exc
 
+        # yfinance renvoie des tableaux vides (sans lever d'erreur) quand Yahoo est
+        # injoignable ou que le ticker n'existe pas : on le signale explicitement.
+        if all(f is None or f.empty for f in (income_annual, cash_annual, income_ttm, cash_ttm)):
+            raise DataSourceError(
+                f"Aucune donnée financière reçue pour {symbol} "
+                "(ticker inconnu ou Yahoo Finance injoignable)."
+            )
+
         revenue_ttm = _latest(_series_points(_find_row(income_ttm, REVENUE_ROWS)))
         fcf_ttm = _latest(_fcf_points(cash_ttm))
 

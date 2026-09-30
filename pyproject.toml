@@ -10,7 +10,7 @@ requires-python = ">=3.10"
 dependencies = ["yfinance>=0.2.50", "pandas"]
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "streamlit>=1.37"]
 
 [project.scripts]
 stock-grader = "stock_grader.cli:main"

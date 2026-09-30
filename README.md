@@ -18,6 +18,20 @@ stock-grader AAPL MSFT MC.PA      # plusieurs tickers
 stock-grader AAPL --json          # sortie JSON (pratique pour comparer avec Yahoo)
 ```
 
+## Interface web (Streamlit)
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Saisir un ticker, puis « Noter » : la note s'affiche en grand (A vert → F rouge),
+suivie des 5 questions avec les deux montants comparés, leurs exercices et les notes.
+Les données de chaque ticker sont mises en cache 24 h (les erreurs ne le sont pas).
+
+**Streamlit Community Cloud** : connecter le dépôt GitHub, choisir la branche et
+`app.py` comme fichier principal ; `requirements.txt` est installé automatiquement.
+
 ## Les 5 questions
 
 | # | Question |
@@ -58,6 +72,7 @@ stock_grader/
   grading.py         logique de notation pure (aucun accès réseau)
   report.py          affichage texte / JSON en français
   cli.py             ligne de commande
+app.py               interface web Streamlit
 ```
 
 Pour changer de fournisseur de données, écrire une classe avec une méthode
@@ -68,4 +83,8 @@ Pour changer de fournisseur de données, écrire une classe avec une méthode
 ```bash
 pytest
 ```
-Les tests n'accèdent pas au réseau (faux objets `Ticker`).
+Les tests n'accèdent pas au réseau (faux objets `Ticker`, `AppTest` de Streamlit
+avec une source factice).
+
+Si Yahoo ne renvoie aucun tableau financier (ticker inconnu ou Yahoo injoignable),
+un message d'erreur s'affiche au lieu d'une note « Non évaluable ».
