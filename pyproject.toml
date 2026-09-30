@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stock-grader"
+version = "0.1.0"
+description = "Notation A-F d'actions selon l'évolution du CA et du Free Cash Flow"
+requires-python = ">=3.10"
+dependencies = ["yfinance>=0.2.50", "pandas"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+stock-grader = "stock_grader.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["stock_grader*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
