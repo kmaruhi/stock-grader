@@ -117,3 +117,22 @@ def test_source_notes_are_propagated():
     )
     r = grade(data(metric(140.0, GROWING), fcf))
     assert "TTM calculé : somme des 4 derniers trimestres" in r.questions[2].notes
+
+
+def test_same_period_but_different_values_adds_restatement_note():
+    rev = metric(131.0, GROWING, ttm_end=date(2024, 12, 31))
+    q2 = grade(data(rev, metric(20.0, {2024: 15.0}))).questions[1]
+    assert q2.answer is Answer.YES  # la réponse reste numérique
+    assert any("même période que l'exercice 2024" in n and "retraitement" in n for n in q2.notes)
+
+
+def test_ttm_older_than_latest_annual_adds_note():
+    rev = metric(125.0, GROWING, ttm_end=date(2024, 6, 30))
+    q2 = grade(data(rev, metric(20.0, {2024: 15.0}))).questions[1]
+    assert q2.answer is Answer.NO
+    assert any("plus ancien que l'exercice 2024" in n for n in q2.notes)
+
+
+def test_no_period_note_for_normal_ttm():
+    q2 = grade(data(metric(140.0, GROWING), metric(20.0, {2024: 15.0}))).questions[1]
+    assert q2.notes == ()

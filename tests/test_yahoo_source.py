@@ -109,3 +109,32 @@ def test_info_failure_is_not_fatal():
 
     t = NoInfo(income_stmt=frame({"Total Revenue": [400]}, ["2024-12-31"]))
     assert source_for(t).fetch("X").currency is None
+
+
+def test_quarters_with_gap_do_not_make_a_ttm():
+    # Trimestre de mars manquant : les 4 dernières colonnes couvrent plus de 12 mois.
+    q_dates = ["2025-06-30", "2024-12-31", "2024-09-30", "2024-06-30"]
+    t = FakeTicker(
+        income_stmt=frame({"Total Revenue": [400]}, ["2024-12-31"]),
+        quarterly_income_stmt=frame({"Total Revenue": [110, 100, 95, 90]}, q_dates),
+    )
+    assert source_for(t).fetch("X").revenue.ttm is None
+
+
+class YFRateLimitError(Exception):
+    """Même nom que l'exception de yfinance."""
+
+
+class RateLimited(FakeTicker):
+    @property
+    def info(self):
+        raise YFRateLimitError()
+
+    @info.setter
+    def info(self, _):
+        pass
+
+
+def test_rate_limit_gives_clear_error_even_without_data():
+    with pytest.raises(DataSourceError, match="limite temporairement"):
+        source_for(RateLimited()).fetch("AAPL")

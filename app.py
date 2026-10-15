@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
+
 import streamlit as st
 
 from stock_grader.grading import Answer, GradeResult, QuestionResult, grade
@@ -11,6 +14,7 @@ from stock_grader.sources import DataSourceError
 from stock_grader.sources.yahoo import YFinanceDataSource
 
 CACHE_TTL_SECONDS = 24 * 60 * 60
+TICKER_PATTERN = re.compile(r"[A-Z0-9.\-^=]{1,20}")
 
 # Fond et couleur du texte du badge, du vert (A) au rouge (F).
 GRADE_COLORS = {
@@ -26,9 +30,9 @@ ANSWER_BADGES = {Answer.YES: "✅ Oui", Answer.NO: "❌ Non", Answer.NA: "N/A"}
 
 
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
-def fetch_data(ticker: str) -> FinancialData:
+def fetch_data(ticker: str) -> tuple[FinancialData, datetime]:
     # Les exceptions (DataSourceError) ne sont pas mises en cache par Streamlit.
-    return YFinanceDataSource().fetch(ticker)
+    return YFinanceDataSource().fetch(ticker), datetime.now(timezone.utc)
 
 
 def render_grade(result: GradeResult) -> None:
@@ -80,17 +84,25 @@ def main() -> None:
         "(TTM comparé aux exercices annuels, données Yahoo Finance)."
     )
 
+    # Le ticker courant vit dans l'URL (?ticker=AAPL) : lien partageable, et le
+    # résultat reste affiché lors des réexécutions (ex. bouton « Actualiser »).
+    current = st.query_params.get("ticker", "")
     with st.form("recherche"):
-        ticker = st.text_input("Ticker", placeholder="ex. AAPL, MSFT, MC.PA").strip().upper()
-        submitted = st.form_submit_button("Noter", type="primary")
+        typed = st.text_input("Ticker", value=current, placeholder="ex. AAPL, MSFT, MC.PA")
+        if st.form_submit_button("Noter", type="primary"):
+            current = typed.strip().upper()
+            st.query_params["ticker"] = current
 
-    if not (submitted and ticker):
+    if not current:
         st.caption("Saisissez un symbole Yahoo Finance (suffixe .PA pour Paris, .DE pour Francfort, etc.).")
         return
+    if not TICKER_PATTERN.fullmatch(current):
+        st.error(f"« {current} » n'est pas un ticker valide (lettres, chiffres et . - ^ = uniquement).")
+        return
 
-    with st.spinner(f"Récupération des données de {ticker}…"):
+    with st.spinner(f"Récupération des données de {current}…"):
         try:
-            data = fetch_data(ticker)
+            data, fetched_at = fetch_data(current)
         except DataSourceError as exc:
             st.error(f"Erreur : {exc}")
             return
@@ -100,7 +112,21 @@ def main() -> None:
     render_grade(result)
     for q in result.questions:
         render_question(q, data.currency)
-    st.caption("Données mises en cache 24 h. Source : Yahoo Finance via yfinance.")
+
+    if result.incomplete:
+        # Un résultat incomplet peut venir d'une erreur passagère de Yahoo (masquée par
+        # yfinance) : on ne le garde pas 24 h en cache.
+        fetch_data.clear(current)
+        cache_info = "Résultat incomplet : non conservé en cache, il sera redemandé à Yahoo à la prochaine recherche."
+    else:
+        cache_info = "Données conservées en cache 24 h."
+    info_col, button_col = st.columns([4, 1], vertical_alignment="center")
+    info_col.caption(
+        f"Données Yahoo Finance récupérées le {fetched_at:%d/%m/%Y à %H:%M} UTC. {cache_info}"
+    )
+    if button_col.button("Actualiser", help="Ignorer le cache et interroger de nouveau Yahoo Finance"):
+        fetch_data.clear(current)
+        st.rerun()
 
 
 main()

@@ -27,9 +27,15 @@ SAMPLES = {
 }
 
 
+CALLS = []
+
+
 @pytest.fixture(autouse=True)
 def fake_source(monkeypatch):
+    CALLS.clear()
+
     def fetch(self, ticker):
+        CALLS.append(ticker)
         if ticker not in SAMPLES:
             raise DataSourceError(f"Impossible de récupérer les données de {ticker}")
         return SAMPLES[ticker]
@@ -84,3 +90,45 @@ def test_na_equality_notes_and_incomplete_warning():
 def test_error_is_shown():
     at = run("NOPE")
     assert "Erreur" in at.error[0].value
+
+
+def captions(at):
+    return "\n".join(c.value for c in at.caption)
+
+
+def test_complete_result_is_cached_and_shown_with_timestamp():
+    at = run("AAPL")
+    assert "récupérées le" in captions(at) and "cache 24 h" in captions(at)
+    run("AAPL")
+    assert CALLS == ["AAPL"]
+
+
+def test_incomplete_result_is_not_cached():
+    at = run("EQ")
+    assert "non conservé en cache" in captions(at)
+    run("EQ")
+    assert CALLS == ["EQ", "EQ"]
+
+
+def test_ticker_in_url_survives_reruns_and_refresh_refetches():
+    at = run("AAPL")
+    assert at.query_params["ticker"] == ["AAPL"]
+    refresh = next(b for b in at.button if b.label == "Actualiser")
+    refresh.click().run()
+    assert not at.exception
+    assert at.subheader[0].value == "AAPL"  # toujours affiché après réexécution
+    assert CALLS == ["AAPL", "AAPL"]
+
+
+def test_shared_link_loads_ticker():
+    at = AppTest.from_file(APP, default_timeout=30)
+    at.query_params["ticker"] = "AAPL"
+    at.run()
+    assert at.subheader[0].value == "AAPL"
+    assert at.text_input[0].value == "AAPL"
+
+
+def test_invalid_ticker_rejected_without_fetch():
+    at = run("AA PL; <b>")
+    assert "n'est pas un ticker valide" in at.error[0].value
+    assert CALLS == []

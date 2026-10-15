@@ -27,7 +27,10 @@ streamlit run app.py
 
 Saisir un ticker, puis « Noter » : la note s'affiche en grand (A vert → F rouge),
 suivie des 5 questions avec les deux montants comparés, leurs exercices et les notes.
-Les données de chaque ticker sont mises en cache 24 h (les erreurs ne le sont pas).
+Les données de chaque ticker sont mises en cache 24 h ; les erreurs et les résultats
+incomplets (N/A) ne le sont pas, car ils peuvent venir d'une erreur passagère de Yahoo.
+Le bouton « Actualiser » force une nouvelle requête. Le ticker figure dans l'URL
+(`?ticker=MC.PA`), ce qui permet de partager un lien direct.
 
 **Streamlit Community Cloud** : connecter le dépôt GitHub, choisir la branche et
 `app.py` comme fichier principal ; `requirements.txt` est installé automatiquement.
@@ -52,6 +55,10 @@ Règles :
 - Comparaison impossible → **N/A**, la note est marquée **INCOMPLÈTE** ; un N/A
   n'est pas compté comme Non (la lettre repose sur le nombre de Oui).
 - Les valeurs négatives sont comparées numériquement (−50 M > −100 M = Oui).
+- Questions 2 et 5 : une note signale aussi un TTM qui couvre la même période que
+  le dernier exercice avec des montants différents (retraitement), ou un TTM plus
+  ancien que le dernier exercice (TTM pas encore mis à jour par la source, fréquent
+  pour les sociétés européennes qui publient semestriellement).
 
 ## Provenance des chiffres (pour comparer avec Yahoo)
 
@@ -59,7 +66,7 @@ Règles :
 - FCF : ligne `Free Cash Flow` (onglet *Cash Flow*). Si absente, recalculée
   comme `Operating Cash Flow + Capital Expenditure` (signalé dans les notes).
 - TTM : colonne *TTM* de Yahoo ; à défaut, somme des 4 derniers trimestres
-  (uniquement si les 4 sont renseignés, signalé dans les notes).
+  (uniquement si les 4 sont renseignés et consécutifs, signalé dans les notes).
 - L'exercice affiché est l'année de la date de clôture (ex. clôture 28/09/2024 → 2024).
 
 ## Architecture
@@ -87,4 +94,5 @@ Les tests n'accèdent pas au réseau (faux objets `Ticker`, `AppTest` de Streaml
 avec une source factice).
 
 Si Yahoo ne renvoie aucun tableau financier (ticker inconnu ou Yahoo injoignable),
-un message d'erreur s'affiche au lieu d'une note « Non évaluable ».
+un message d'erreur s'affiche au lieu d'une note « Non évaluable ». De même si Yahoo limite
+le nombre de requêtes (fréquent sur des serveurs partagés comme Streamlit Cloud).

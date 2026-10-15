@@ -101,6 +101,37 @@ def _vs_oldest(number: int, label: str, metric: MetricHistory) -> QuestionResult
     return _compare(number, label, left, right, notes)
 
 
+def _period_notes(ttm: Operand, latest: DataPoint) -> list[str]:
+    """Signale quand le TTM et le dernier exercice ne couvrent pas des périodes successives."""
+    ttm_end = ttm.period.period_end if ttm.period is not None else None
+    same_period = ttm_end == latest.period_end
+    if ttm.value == latest.value:
+        detail = (
+            "les 12 derniers mois se terminent à la même date que l'exercice"
+            if same_period
+            else "les chiffres sont identiques à ceux de l'exercice"
+        )
+        return [
+            f"TTM égal au dernier exercice annuel ({latest.fiscal_year}) : {detail}, "
+            "ce qui arrive typiquement juste après la publication du rapport annuel. "
+            "Égalité = Non, sans que cela signale une baisse ; la question redeviendra "
+            "discriminante après le prochain rapport trimestriel."
+        ]
+    if same_period:
+        return [
+            f"Le TTM couvre la même période que l'exercice {latest.fiscal_year} "
+            f"(clos le {latest.period_end:%d/%m/%Y}) mais les montants diffèrent, "
+            "probablement à cause d'un retraitement : l'écart ne reflète pas une évolution réelle."
+        ]
+    if ttm_end is not None and ttm_end < latest.period_end:
+        return [
+            f"Le TTM (12 mois au {ttm_end:%d/%m/%Y}) est plus ancien que l'exercice "
+            f"{latest.fiscal_year} (clos le {latest.period_end:%d/%m/%Y}) : la source n'a pas "
+            "encore mis à jour le TTM ; la comparaison est à interpréter avec prudence."
+        ]
+    return []
+
+
 def _vs_latest(number: int, label: str, metric: MetricHistory) -> QuestionResult:
     latest = metric.latest_annual()
     left, right = _ttm(metric), _annual(latest)
@@ -110,19 +141,8 @@ def _vs_latest(number: int, label: str, metric: MetricHistory) -> QuestionResult
         if skipped:
             years = ", ".join(str(p.fiscal_year) for p in skipped)
             notes.append(f"Exercice(s) {years} sans données ignoré(s) ; comparaison avec {latest.fiscal_year}.")
-    if left.available and right.available and left.value == right.value:
-        same_period = left.period is not None and left.period.period_end == latest.period_end  # type: ignore[union-attr]
-        detail = (
-            "les 12 derniers mois se terminent à la même date que l'exercice"
-            if same_period
-            else "les chiffres sont identiques à ceux de l'exercice"
-        )
-        notes.append(
-            f"TTM égal au dernier exercice annuel ({latest.fiscal_year}) : {detail}, "  # type: ignore[union-attr]
-            "ce qui arrive typiquement juste après la publication du rapport annuel. "
-            "Égalité = Non, sans que cela signale une baisse ; la question redeviendra "
-            "discriminante après le prochain rapport trimestriel."
-        )
+    if left.available and right.available:
+        notes += _period_notes(left, latest)  # type: ignore[arg-type]
     return _compare(number, label, left, right, notes)
 
 

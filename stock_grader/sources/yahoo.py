@@ -99,6 +99,9 @@ def _ttm_from_quarters(points: list[DataPoint]) -> DataPoint | None:
     last4 = points[-4:]
     if len(last4) < 4 or not all(p.has_value for p in last4):
         return None
+    # 4 trimestres consécutifs : environ 9 mois entre la fin du 1er et du 4e.
+    if not 240 <= (last4[-1].period_end - last4[0].period_end).days <= 300:
+        return None
     return DataPoint(
         last4[-1].period_end,
         sum(p.value for p in last4),  # type: ignore[misc]
@@ -123,6 +126,8 @@ class YFinanceDataSource:
         except Exception as exc:  # réseau, API modifiée, etc.
             raise DataSourceError(f"Impossible de récupérer les données de {symbol} : {exc}") from exc
 
+        info = self._info(t)
+
         # yfinance renvoie des tableaux vides (sans lever d'erreur) quand Yahoo est
         # injoignable ou que le ticker n'existe pas : on le signale explicitement.
         if all(f is None or f.empty for f in (income_annual, cash_annual, income_ttm, cash_ttm)):
@@ -142,7 +147,6 @@ class YFinanceDataSource:
             quarters = self._frame(t, "quarterly_cashflow", optional=True)
             fcf_ttm = _ttm_from_quarters(_fcf_points(quarters))
 
-        info = self._info(t)
         return FinancialData(
             ticker=symbol,
             revenue=MetricHistory(
@@ -171,6 +175,13 @@ class YFinanceDataSource:
         # Les métadonnées sont facultatives : un échec ne doit pas bloquer la notation.
         try:
             info = t.info
-        except Exception:
+        except Exception as exc:
+            # yfinance masque les erreurs des états financiers ; la limite de requêtes
+            # n'apparaît qu'ici. Mieux vaut un message clair qu'une note dégradée.
+            if type(exc).__name__ == "YFRateLimitError":
+                raise DataSourceError(
+                    "Yahoo Finance limite temporairement le nombre de requêtes ; "
+                    "réessayez dans quelques minutes."
+                ) from exc
             return {}
         return info if isinstance(info, dict) else {}
