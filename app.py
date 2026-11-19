@@ -26,6 +26,40 @@ GRADE_COLORS = {
     None: ("#9e9e9e", "#ffffff"),
 }
 
+DISCLAIMER = (
+    "Outil pédagogique : cette note ne constitue pas un conseil en investissement. "
+    "Les données proviennent de Yahoo Finance et peuvent contenir des erreurs ou des retards."
+)
+
+HOW_TO = """
+**1. Saisir un ticker** (le symbole de l'action sur Yahoo Finance), puis cliquer sur « Noter ».
+- Actions américaines : le symbole seul, ex. `AAPL` (Apple), `MSFT` (Microsoft).
+- Autres places : ajouter le suffixe de la bourse, ex. `MC.PA` (LVMH, Paris),
+  `SAP.DE` (Francfort), `SHOP.TO` (Toronto). En cas de doute, chercher la société
+  sur finance.yahoo.com et recopier le symbole affiché.
+
+**2. Lire les 5 questions.** Chacune compare deux montants :
+- **TTM** (*trailing twelve months*) = les 12 derniers mois publiés ;
+- **exercice** = une année comptable complète (l'année de clôture est indiquée).
+- Le **Free Cash Flow** (FCF) est la trésorerie générée par l'activité, après investissements.
+
+| Réponse | Signification |
+|---|---|
+| ✅ Oui | le TTM est strictement supérieur |
+| ❌ Non | le TTM est inférieur **ou égal** |
+| N/A | comparaison impossible faute de données (ne compte pas comme Non) |
+
+**3. Lire la note** selon le nombre de « Oui » : 5 = **A**, 4 = **B**, 3 = **C**,
+2 = **D** (sous-performance), 0 ou 1 = **F**. Une note **INCOMPLÈTE** signifie
+qu'au moins une question est N/A.
+
+**4. Lire les notes ℹ️** sous les questions : elles expliquent les cas particuliers
+(TTM égal au dernier exercice juste après un rapport annuel, année sans données, etc.).
+
+Astuce : l'adresse de la page contient le ticker (`?ticker=MC.PA`) ; on peut la copier
+pour partager directement un résultat.
+"""
+
 ANSWER_BADGES = {Answer.YES: "✅ Oui", Answer.NO: "❌ Non", Answer.NA: "N/A"}
 
 
@@ -83,6 +117,9 @@ def main() -> None:
         "Note de A à F selon l'évolution du chiffre d'affaires et du Free Cash Flow "
         "(TTM comparé aux exercices annuels, données Yahoo Finance)."
     )
+    st.info(DISCLAIMER, icon="🎓")
+    with st.expander("Mode d'emploi"):
+        st.markdown(HOW_TO)
 
     # Le ticker courant vit dans l'URL (?ticker=AAPL) : lien partageable, et le
     # résultat reste affiché lors des réexécutions (ex. bouton « Actualiser »).

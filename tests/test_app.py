@@ -63,6 +63,9 @@ def test_initial_page_in_french():
     assert not at.exception
     assert at.title[0].value == "📈 Notation d'actions"
     assert at.text_input[0].label == "Ticker"
+    assert "ne constitue pas un conseil en investissement" in at.info[0].value
+    assert at.expander[0].label == "Mode d'emploi"
+    assert "MC.PA" in "\n".join(m.value for m in at.expander[0].markdown)
 
 
 def test_grade_and_questions_displayed():
@@ -112,7 +115,7 @@ def test_incomplete_result_is_not_cached():
 
 def test_ticker_in_url_survives_reruns_and_refresh_refetches():
     at = run("AAPL")
-    assert at.query_params["ticker"] == ["AAPL"]
+    assert at.query_params["ticker"] in ("AAPL", ["AAPL"])  # format selon la version de Streamlit
     refresh = next(b for b in at.button if b.label == "Actualiser")
     refresh.click().run()
     assert not at.exception
