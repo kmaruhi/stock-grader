@@ -403,8 +403,8 @@ def _choose(symbol: str) -> None:
 
 
 LEAD = (
-    "Note de A à F selon l'évolution du chiffre d'affaires et du Free Cash Flow "
-    "(TTM comparé aux exercices annuels, données Yahoo Finance)."
+    "La santé financière d’une entreprise notée de A à F, à partir de 5 questions "
+    "sur son chiffre d’affaires et son Free Cash Flow. Données Yahoo Finance."
 )
 
 

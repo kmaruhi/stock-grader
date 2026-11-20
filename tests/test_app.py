@@ -286,7 +286,7 @@ def test_result_comes_before_intro_but_home_page_starts_with_it():
     # Sur la page de résultat : en-tête compact, puis la note, puis la présentation.
     assert "sg-brand compact" in md[1] and "sg-lead" not in md[1]
     grade_index = next(i for i, m in enumerate(md) if "aria-label='Note C'" in m)
-    intro_index = next(i for i, m in enumerate(md) if "Note de A à F" in m)
+    intro_index = next(i for i, m in enumerate(md) if "La santé financière d’une entreprise" in m)
     disclaimer_index = next(i for i, m in enumerate(md) if "conseil en investissement" in m)
     assert grade_index < intro_index < disclaimer_index
 
