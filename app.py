@@ -76,22 +76,20 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
 .stMarkdown a {color:var(--sg-accent); text-decoration-thickness:1px; text-underline-offset:3px;}
 
 /* En-tête de marque */
-.sg-brand {text-align:center; margin:0 0 1.75rem;}
-.sg-brand img {width:11rem; height:auto;}
-.sg-wordmark {font-family:'Marcellus',serif; letter-spacing:.32em; font-size:1.1rem;
-              text-transform:uppercase; opacity:.85; margin-top:.9rem;}
-.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; font-size:2.9rem;
-        letter-spacing:.18em; padding-left:.18em; line-height:1.1; margin:.5rem 0 .6rem;}
-.sg-lead {opacity:.7; font-weight:300; max-width:32rem; margin:0 auto;}
-.sg-brand.compact {display:flex; align-items:center; gap:.75rem; text-align:left; margin:0 0 1rem;}
-.sg-brand.compact img {width:4.25rem;}
-.sg-brand.compact .sg-wordmark {margin:0; font-size:.85rem;}
-.sg-brand.compact .sg-h1 {font-size:1.75rem; letter-spacing:.14em; padding-left:0; margin:.1rem 0 0;}
-@media (max-width:640px) {
-  .sg-brand img {width:9rem;}
-  .sg-wordmark {font-size:.95rem;}
-  .sg-h1 {font-size:2.5rem;}
-}
+.sg-brand {width:100%; display:flex; flex-direction:column; align-items:center; text-align:center;
+           gap:clamp(.5rem, 1.8vw, .85rem); margin:0 0 1.75rem;}
+.sg-brand img {width:22%; max-width:7rem; height:auto;}
+.sg-wordmark {font-family:'Marcellus',serif; text-transform:uppercase; opacity:.85;
+              font-size:clamp(.72rem, 2.4vw, .9rem); letter-spacing:.32em; padding-left:.32em;}
+.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; line-height:1.05;
+        font-size:clamp(2.2rem, 9vw, 3.4rem); letter-spacing:.18em; padding-left:.18em;}
+.sg-brand .sg-lead, .sg-lead {width:100%; max-width:90%; margin:0; opacity:.7; font-weight:300; line-height:1.55;
+          font-size:clamp(1rem, 3.4vw, 1.15rem);}
+@media (min-width:768px) {.sg-brand .sg-lead, .sg-lead {max-width:65%;}}
+/* Au-dessus d'un résultat : même centrage, logo et titre réduits d'environ 40 %. */
+.sg-brand.compact {gap:clamp(.35rem, 1.2vw, .55rem); margin:0 0 1rem;}
+.sg-brand.compact img {width:13%; max-width:4.2rem;}
+.sg-brand.compact .sg-h1 {font-size:clamp(1.3rem, 5.4vw, 2.05rem);}
 .sg-disclaimer {border-left:2px solid var(--sg-accent); padding:.35rem 0 .35rem .9rem;
                 font-size:.85rem; font-weight:300; opacity:.8; margin:1.25rem 0;}
 
@@ -374,14 +372,15 @@ LEAD = (
 
 
 def render_header(theme: str, compact: bool) -> None:
-    """Logo, marque et titre : grand et centré à l'accueil, compact au-dessus d'un résultat."""
+    """Logo, marque, titre et phrase d'introduction, centrés les uns sous les autres
+    (réduits au-dessus d'un résultat pour que la note reste visible sur téléphone)."""
     logo = logo_data_uri(theme)
     logo_html = f"<img src='{logo}' alt='Logo {BRAND}'>" if logo else ""
     lead = "" if compact else f"<p class='sg-lead'>{html.escape(LEAD)}</p>"
     st.markdown(
-        f"<div class='sg-brand{' compact' if compact else ''}'>{logo_html}<div>"
+        f"<div class='sg-brand{' compact' if compact else ''}'>{logo_html}"
         f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>{APP_NAME}</div>"
-        f"{lead}</div></div>",
+        f"{lead}</div>",
         unsafe_allow_html=True,
     )
 
