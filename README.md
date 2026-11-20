@@ -39,6 +39,39 @@ Le bouton « Actualiser » force une nouvelle requête. Le ticker figure dans l'
 **Streamlit Community Cloud** : connecter le dépôt GitHub, choisir la branche et
 `app.py` comme fichier principal ; `requirements.txt` est installé automatiquement.
 
+## Organisation : version élèves et version de test
+
+- **`main`** : la version utilisée par le site des élèves (Streamlit Cloud déploie
+  cette branche). Elle ne change que lorsqu'une *pull request* est fusionnée
+  (bouton vert « Merge » sur GitHub).
+- **Branche de travail** (`claude/...`) : les modifications y sont faites et testées,
+  puis proposées à `main` par une pull request.
+
+## Vérification par notes de référence
+
+Renseigner `references.csv` avec des actions notées à la main :
+
+```csv
+ticker,note_attendue,commentaire
+AAPL,B,noté à la main le 20/11/2026
+MC.PA,C,
+```
+
+puis lancer (accès à Yahoo Finance nécessaire) :
+
+```bash
+stock-grader --verifier references.csv
+```
+
+Chaque action est marquée ✅ (même note), ❌ (écart, avec le détail des 5 réponses)
+ou ⚠️ (données indisponibles). Code de sortie 0 seulement si tout correspond.
+
+## Signalement des problèmes
+
+Renseigner `LIEN_SIGNALEMENT` en haut de `app.py` (formulaire en ligne ou
+`mailto:adresse`) pour afficher un lien « Signaler un problème » sous chaque résultat.
+Le dépôt étant public, ce lien est visible de tous.
+
 ## Les 5 questions
 
 | # | Question |

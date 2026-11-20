@@ -172,3 +172,35 @@ def test_invalid_ticker_rejected_without_fetch():
     at = run("AA PL; <b>")
     assert "n'est pas un ticker valide" in at.error[0].value
     assert CALLS == []
+
+
+def test_second_search_shows_new_ticker_immediately():
+    # Régression : la 2e recherche réaffichait le ticker précédent.
+    at = run("AAPL")
+    at.text_input[0].input("EQ")
+    at.button[0].click().run()
+    assert at.subheader[0].value == "`EQ`"
+    assert at.text_input[0].value == "EQ"
+    at.text_input[0].input("aapl")
+    at.button[0].click().run()
+    assert at.subheader[0].value == "Apple Inc. `AAPL`"
+
+
+def test_report_link_hidden_until_configured():
+    md = all_markdown(run("AAPL"))
+    assert "Signaler un problème" not in md
+
+
+def test_report_link_shown_with_ticker_in_email_subject(tmp_path):
+    source = Path(APP).read_text(encoding="utf-8").replace(
+        'LIEN_SIGNALEMENT = ""', 'LIEN_SIGNALEMENT = "mailto:prof@example.com"'
+    )
+    app = tmp_path / "app.py"
+    app.write_text(source, encoding="utf-8")
+    at = AppTest.from_file(str(app), default_timeout=30)
+    at.query_params["ticker"] = "AAPL"
+    at.run()
+    assert not at.exception
+    md = all_markdown(at)
+    assert "[Signaler un problème](mailto:prof@example.com?subject=" in md
+    assert "AAPL" in md.split("subject=")[1]
