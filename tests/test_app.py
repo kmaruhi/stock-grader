@@ -102,12 +102,11 @@ def test_initial_page_in_french():
     at = AppTest.from_file(APP).run()
     assert not at.exception
     md = all_markdown(at)
-    assert "<div class='sg-h1'>Notation d'actions</div>" in md
+    assert "<div class='sg-h1'>ORA SCORE</div>" in md
     assert "LVLUP with Lani" in md and "data:image/png;base64," in md  # logo de la marque
     assert at.text_input[0].label == "Société ou symbole"
     assert "ne constitue pas un conseil en investissement" in md
-    assert at.expander[0].label == "Mode d'emploi"
-    assert "MC.PA" in "\n".join(m.value for m in at.expander[0].markdown)
+    assert not at.expander  # pas de mode d'emploi : les élèves connaissent le barème
 
 
 def test_grade_and_questions_displayed():
@@ -279,14 +278,14 @@ def test_search_unavailable_falls_back_to_symbol():
 def test_result_comes_before_intro_but_home_page_starts_with_it():
     home = AppTest.from_file(APP).run()
     home_md = [m.value for m in home.markdown]
-    disclaimer = next(i for i, m in enumerate(home_md) if "conseil en investissement" in m)
-    assert disclaimer < len(home_md) - 1  # avertissement pédagogique en haut de l'accueil
+    assert "sg-brand compact" not in home_md[1]  # grand en-tête à l'accueil
+    assert any("conseil en investissement" in m for m in home_md)  # avertissement pédagogique
     at = run("AAPL")
     md = [m.value for m in at.markdown]
     # Sur la page de résultat : en-tête compact, puis la note, puis la présentation.
     assert "sg-brand compact" in md[1] and "sg-lead" not in md[1]
     grade_index = next(i for i, m in enumerate(md) if "aria-label='Note C'" in m)
-    intro_index = next(i for i, m in enumerate(md) if "Note de A à F" in m)
+    intro_index = next(i for i, m in enumerate(md) if "La santé financière d’une entreprise" in m)
     disclaimer_index = next(i for i, m in enumerate(md) if "conseil en investissement" in m)
     assert grade_index < intro_index < disclaimer_index
 
@@ -311,3 +310,9 @@ def test_criteria_wording():
     assert criteria_text(0, 5) == "Aucun critère validé sur 5"
     assert criteria_text(1, 5) == "1 critère validé sur 5"
     assert criteria_text(4, 4) == "4 critères validés sur 4"
+
+
+def test_one_line_hint_under_questions():
+    md = all_markdown(run("AAPL"))
+    assert "<div class='sg-hint'><b>TTM</b> = les 12 derniers mois publiés" in md
+    assert "<b>N/A</b> = donnée manquante chez Yahoo, non comptée comme Non." in md

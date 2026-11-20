@@ -41,54 +41,18 @@ GRADE_COLORS = {
 
 ASSETS = Path(__file__).parent / "assets"
 BRAND = "LVLUP with Lani"
+APP_NAME = "ORA SCORE"
 
 DISCLAIMER = (
     "Outil pédagogique : cette note ne constitue pas un conseil en investissement. "
     "Les données proviennent de Yahoo Finance et peuvent contenir des erreurs ou des retards."
 )
 
-HOW_TO = """
-**1. Saisir le nom de la société ou son symbole**, puis cliquer sur « Noter ».
-- Par le nom : ex. `Netflix`, `LVMH`. Si plusieurs sociétés correspondent,
-  choisir la bonne dans la liste proposée (la bourse est indiquée entre parenthèses).
-- Par le symbole (ticker) Yahoo Finance : ex. `AAPL` (Apple), `MSFT` (Microsoft) ;
-  hors des États-Unis, avec le suffixe de la bourse, ex. `MC.PA` (LVMH, Paris),
-  `SAP.DE` (Francfort), `SHOP.TO` (Toronto).
-
-**2. Lire les 5 questions.**
-
-| # | Titre affiché | Question posée |
-|---|---|---|
-| 1 | Chiffre d'affaires en hausse (global) | CA TTM > plus ancien CA annuel disponible ? |
-| 2 | Chiffre d'affaires en hausse (récent) | CA TTM > CA annuel le plus récent ? |
-| 3 | Free Cash Flow positif | FCF TTM > 0 ? |
-| 4 | Free Cash Flow en hausse (global) | FCF TTM > plus ancien FCF annuel disponible ? |
-| 5 | Free Cash Flow en hausse (récent) | FCF TTM > FCF annuel le plus récent ? |
-
-Sous chaque titre, la ligne grise indique **les périodes comparées** (ex. « TTM au
-30/06/2025 vs exercice 2023 »), et les deux montants sont affichés à droite. Si une
-année n'a pas de données chez Yahoo, l'exercice disponible le plus proche est utilisé
-et l'année manquante est signalée. Chaque question compare deux montants :
-- **TTM** (*trailing twelve months*) = les 12 derniers mois publiés ;
-- **exercice** = une année comptable complète (l'année de clôture est indiquée).
-- Le **Free Cash Flow** (FCF) est la trésorerie générée par l'activité, après investissements.
-
-| Réponse | Signification |
-|---|---|
-| ✅ Oui | le TTM est strictement supérieur |
-| ❌ Non | le TTM est inférieur **ou égal** |
-| N/A | comparaison impossible faute de données (ne compte pas comme Non) |
-
-**3. Lire la note** selon le nombre de « Oui » : 5 = **A**, 4 = **B**, 3 = **C**,
-2 = **D** (sous-performance), 0 ou 1 = **F**. Une note **INCOMPLÈTE** signifie
-qu'au moins une question est N/A.
-
-**4. Lire les notes ℹ️** sous les questions : elles expliquent les cas particuliers
-(TTM égal au dernier exercice juste après un rapport annuel, année sans données, etc.).
-
-Astuce : l'adresse de la page contient le ticker (`?ticker=MC.PA`) ; on peut la copier
-pour partager directement un résultat.
-"""
+# Rappel d'une ligne sous les questions (remplace l'ancien mode d'emploi).
+HINT = (
+    "<b>TTM</b> = les 12 derniers mois publiés · <b>Exercice</b> = une année comptable complète · "
+    "<b>N/A</b> = donnée manquante chez Yahoo, non comptée comme Non."
+)
 
 ANSWER_ICONS = {Answer.YES: "✓", Answer.NO: "✕", Answer.NA: "–"}
 ANSWER_CLASSES = {Answer.YES: "yes", Answer.NO: "no", Answer.NA: "na"}
@@ -112,17 +76,22 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
 .stMarkdown a {color:var(--sg-accent); text-decoration-thickness:1px; text-underline-offset:3px;}
 
 /* En-tête de marque */
-.sg-brand {text-align:center; margin:.5rem 0 1.75rem;}
-.sg-brand img {width:6.5rem; height:auto;}
-.sg-wordmark {font-family:'Marcellus',serif; letter-spacing:.32em; font-size:.8rem;
-              text-transform:uppercase; opacity:.8; margin-top:.6rem;}
-.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; font-size:2.6rem;
-        line-height:1.1; margin:.35rem 0 .5rem;}
+.sg-brand {text-align:center; margin:0 0 1.75rem;}
+.sg-brand img {width:11rem; height:auto;}
+.sg-wordmark {font-family:'Marcellus',serif; letter-spacing:.32em; font-size:1.1rem;
+              text-transform:uppercase; opacity:.85; margin-top:.9rem;}
+.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; font-size:2.9rem;
+        letter-spacing:.18em; padding-left:.18em; line-height:1.1; margin:.5rem 0 .6rem;}
 .sg-lead {opacity:.7; font-weight:300; max-width:32rem; margin:0 auto;}
 .sg-brand.compact {display:flex; align-items:center; gap:.75rem; text-align:left; margin:0 0 1rem;}
-.sg-brand.compact img {width:2.6rem;}
-.sg-brand.compact .sg-wordmark {margin:0; font-size:.7rem;}
-.sg-brand.compact .sg-h1 {font-size:1.45rem; margin:0;}
+.sg-brand.compact img {width:4.25rem;}
+.sg-brand.compact .sg-wordmark {margin:0; font-size:.85rem;}
+.sg-brand.compact .sg-h1 {font-size:1.75rem; letter-spacing:.14em; padding-left:0; margin:.1rem 0 0;}
+@media (max-width:640px) {
+  .sg-brand img {width:9rem;}
+  .sg-wordmark {font-size:.95rem;}
+  .sg-h1 {font-size:2.5rem;}
+}
 .sg-disclaimer {border-left:2px solid var(--sg-accent); padding:.35rem 0 .35rem .9rem;
                 font-size:.85rem; font-weight:300; opacity:.8; margin:1.25rem 0;}
 
@@ -160,6 +129,8 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
 .sg-values .vs {opacity:.5; font-size:.8rem; padding:0 .15rem;}
 .sg-notes {padding:0 1.1rem .9rem 4.25rem; font-size:.78rem; font-weight:300; opacity:.75;}
 .sg-notes div + div {margin-top:.25rem;}
+.sg-hint {font-size:.78rem; font-weight:300; opacity:.65; margin:.6rem .25rem 0;}
+.sg-hint b {font-weight:500;}
 .sg-card {display:flex; align-items:center; justify-content:space-between; gap:1rem; background:var(--sg-card);
           border:1px solid var(--sg-line); border-radius:1rem; padding:.95rem 1.1rem; margin:1rem 0 .75rem;}
 .sg-muted {font-size:.85rem; opacity:.65; margin:1rem 0 .75rem;}
@@ -333,7 +304,7 @@ def question_html(q: QuestionResult, data: FinancialData) -> str:
 
 def render_questions(result: GradeResult, data: FinancialData) -> None:
     items = "".join(question_html(q, data) for q in result.questions)
-    st.markdown(f"<div class='sg-list'>{items}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sg-list'>{items}</div><div class='sg-hint'>{HINT}</div>", unsafe_allow_html=True)
 
 
 def render_earnings(data: FinancialData, today: date) -> None:
@@ -359,7 +330,7 @@ def report_link(ticker: str | None = None) -> str | None:
     if not LIEN_SIGNALEMENT:
         return None
     if LIEN_SIGNALEMENT.startswith("mailto:") and ticker:
-        return f"{LIEN_SIGNALEMENT}?subject={quote(f'Notation d’actions : problème avec {ticker}')}"
+        return f"{LIEN_SIGNALEMENT}?subject={quote(f'{APP_NAME} : problème avec {ticker}')}"
     return LIEN_SIGNALEMENT
 
 
@@ -397,8 +368,8 @@ def _choose(symbol: str) -> None:
 
 
 LEAD = (
-    "Note de A à F selon l'évolution du chiffre d'affaires et du Free Cash Flow "
-    "(TTM comparé aux exercices annuels, données Yahoo Finance)."
+    "La santé financière d’une entreprise notée de A à F, à partir de 5 questions "
+    "sur son chiffre d’affaires et son Free Cash Flow. Données Yahoo Finance."
 )
 
 
@@ -409,7 +380,7 @@ def render_header(theme: str, compact: bool) -> None:
     lead = "" if compact else f"<p class='sg-lead'>{html.escape(LEAD)}</p>"
     st.markdown(
         f"<div class='sg-brand{' compact' if compact else ''}'>{logo_html}<div>"
-        f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>Notation d'actions</div>"
+        f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>{APP_NAME}</div>"
         f"{lead}</div></div>",
         unsafe_allow_html=True,
     )
@@ -419,8 +390,6 @@ def render_intro(compact: bool) -> None:
     if compact:
         st.markdown(f"<p class='sg-lead' style='margin:0'>{html.escape(LEAD)}</p>", unsafe_allow_html=True)
     st.markdown(f"<div class='sg-disclaimer'>{html.escape(DISCLAIMER)}</div>", unsafe_allow_html=True)
-    with st.expander("Mode d'emploi"):
-        st.markdown(HOW_TO)
 
 
 def render_choices(query: str, choices: list[CompanyMatch]) -> None:
@@ -437,7 +406,7 @@ def render_choices(query: str, choices: list[CompanyMatch]) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title=f"Notation d'actions · {BRAND}", page_icon=_page_icon(), layout="centered")
+    st.set_page_config(page_title=f"{APP_NAME} · {BRAND}", page_icon=_page_icon(), layout="centered")
     theme = theme_type()
     st.markdown(CSS + theme_css(theme), unsafe_allow_html=True)
 
