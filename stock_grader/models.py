@@ -71,3 +71,13 @@ class FinancialData:
     # Prochaine publication de résultats : une date, ou deux si Yahoo donne une
     # fourchette estimée (début, fin). Vide si inconnue.
     next_earnings: tuple[date, ...] = ()
+
+
+@dataclass(frozen=True)
+class CompanyMatch:
+    """Résultat de recherche d'une société par son nom (ou son symbole)."""
+
+    symbol: str
+    name: str
+    exchange: str | None = None
+    kind: str | None = None  # ex. « EQUITY » (action), « ETF », « FUTURE »

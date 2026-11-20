@@ -8,7 +8,7 @@ from typing import Any, Callable
 
 import pandas as pd
 
-from ..models import DataPoint, FinancialData, MetricHistory
+from ..models import CompanyMatch, DataPoint, FinancialData, MetricHistory
 from .base import DataSourceError
 
 REVENUE_ROWS = ("Total Revenue", "Operating Revenue")
@@ -21,6 +21,12 @@ def _default_ticker_factory(symbol: str) -> Any:
     import yfinance as yf
 
     return yf.Ticker(symbol)
+
+
+def _default_search(query: str) -> list[dict]:
+    import yfinance as yf
+
+    return yf.Search(query, max_results=10, news_count=0, lists_count=0).quotes
 
 
 def _to_date(label: Any) -> date | None:
@@ -112,8 +118,32 @@ def _ttm_from_quarters(points: list[DataPoint]) -> DataPoint | None:
 class YFinanceDataSource:
     """Récupère CA et FCF (TTM + annuels) depuis Yahoo Finance."""
 
-    def __init__(self, ticker_factory: Callable[[str], Any] = _default_ticker_factory):
+    def __init__(
+        self,
+        ticker_factory: Callable[[str], Any] = _default_ticker_factory,
+        search_function: Callable[[str], list[dict]] = _default_search,
+    ):
         self._ticker_factory = ticker_factory
+        self._search_function = search_function
+
+    def search(self, query: str) -> list[CompanyMatch]:
+        """Sociétés correspondant à un nom ou à un symbole (recherche Yahoo Finance)."""
+        query = query.strip()
+        if not query:
+            return []
+        try:
+            quotes = self._search_function(query) or []
+        except Exception as exc:  # réseau, API modifiée, limite de requêtes, etc.
+            raise DataSourceError(f"Recherche impossible pour « {query} » : {exc}") from exc
+        matches = []
+        for quote in quotes:
+            symbol = quote.get("symbol") if isinstance(quote, dict) else None
+            if not symbol:
+                continue
+            name = (quote.get("longname") or quote.get("shortname") or symbol).strip()
+            exchange = quote.get("exchDisp") or quote.get("exchange")
+            matches.append(CompanyMatch(symbol.upper(), " ".join(name.split()), exchange, quote.get("quoteType")))
+        return matches
 
     def fetch(self, ticker: str) -> FinancialData:
         symbol = ticker.strip().upper()
