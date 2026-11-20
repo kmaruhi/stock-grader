@@ -101,9 +101,11 @@ def all_markdown(at):
 def test_initial_page_in_french():
     at = AppTest.from_file(APP).run()
     assert not at.exception
-    assert at.title[0].value == "📈 Notation d'actions"
+    md = all_markdown(at)
+    assert "<div class='sg-h1'>Notation d'actions</div>" in md
+    assert "LVLUP with Lani" in md and "data:image/png;base64," in md  # logo de la marque
     assert at.text_input[0].label == "Société ou symbole"
-    assert "ne constitue pas un conseil en investissement" in at.info[0].value
+    assert "ne constitue pas un conseil en investissement" in md
     assert at.expander[0].label == "Mode d'emploi"
     assert "MC.PA" in "\n".join(m.value for m in at.expander[0].markdown)
 
@@ -112,12 +114,15 @@ def test_grade_and_questions_displayed():
     at = run("aapl")  # mis en majuscules
     md = all_markdown(at)
     assert at.subheader[0].value == "Apple Inc. `AAPL`"  # nom de la société à côté du ticker
-    assert "#fbc02d" in md and ">C</div>" in md  # C en jaune
+    # Note dans un anneau fin, couleur ocre pour C (thème clair), 3 critères sur 5.
+    assert "--sg-grade:#a8823a" in md and "aria-label='Note C'>C</div>" in md
+    assert "3 critères validés sur 5" in md
     # Titres courts, périodes comparées sous le titre, montants à droite.
     assert "Chiffre d&#x27;affaires en hausse (global)" in md
     assert "TTM au 30/06/2025 vs exercice 2021" in md
-    assert "410,00 Md &#36;</span> vs <span class='nw'>365,80 Md &#36;" in md
-    assert "✅<small>Oui</small>" in md and "❌<small>Non</small>" in md
+    assert "410,00 Md &#36;</span> <span class='vs'>vs</span> <span class='nw'>365,80 Md &#36;" in md
+    assert "<span class='sg-mark yes'>✓</span><small>Oui</small>" in md
+    assert "<span class='sg-mark no'>✕</span><small>Non</small>" in md
     # Q3 : un seul montant (comparaison à zéro), en négatif.
     assert "FCF TTM au 30/06/2025" in md and "-50,00 M &#36;" in md
     assert not at.warning
@@ -125,8 +130,8 @@ def test_grade_and_questions_displayed():
 
 def test_next_earnings_shown_at_bottom():
     md = all_markdown(run("AAPL"))
-    assert "📅 Prochains résultats" in md
-    assert "⏱ 97 j" in md
+    assert "Prochains résultats" in md
+    assert "97 j</div>" in md
 
 
 def test_missing_name_and_earnings_are_explained():
@@ -138,8 +143,8 @@ def test_missing_name_and_earnings_are_explained():
 
 def test_fallback_years_are_flagged_in_subtitle():
     md = all_markdown(run("GAP"))
-    assert "TTM au 30/06/2025 vs exercice 2021 · <span class='sg-warn'>⚠️ 2020 sans données</span>" in md
-    assert "TTM au 30/06/2025 vs exercice 2024 · <span class='sg-warn'>⚠️ 2025 sans données</span>" in md
+    assert "TTM au 30/06/2025 vs exercice 2021 · <span class='sg-warn'>2020 sans données</span>" in md
+    assert "TTM au 30/06/2025 vs exercice 2024 · <span class='sg-warn'>2025 sans données</span>" in md
     # FCF : pas d'année manquante, pas d'avertissement ; exercice différent du CA.
     assert "TTM au 30/06/2025 vs exercice 2022</div>" in md
 
@@ -147,7 +152,7 @@ def test_fallback_years_are_flagged_in_subtitle():
 def test_na_equality_notes_and_incomplete_warning():
     at = run("EQ")
     md = all_markdown(at)
-    assert "N/A</div>" in md
+    assert "<span class='sg-mark na'>–</span><small>N/A</small>" in md
     assert "INCOMPLÈTE" in md
     assert "TTM égal au dernier exercice annuel (2024)" in md
     assert "Un seul exercice annuel" in md
@@ -273,12 +278,36 @@ def test_search_unavailable_falls_back_to_symbol():
 
 def test_result_comes_before_intro_but_home_page_starts_with_it():
     home = AppTest.from_file(APP).run()
-    assert home.info  # avertissement pédagogique visible dès l'accueil
+    home_md = [m.value for m in home.markdown]
+    disclaimer = next(i for i, m in enumerate(home_md) if "conseil en investissement" in m)
+    assert disclaimer < len(home_md) - 1  # avertissement pédagogique en haut de l'accueil
     at = run("AAPL")
-    assert "ne constitue pas un conseil en investissement" in at.info[0].value  # toujours présent
-    # Sur la page de résultat, la note est affichée avant la présentation.
     md = [m.value for m in at.markdown]
-    grade_index = next(i for i, m in enumerate(md) if ">C</div>" in m)
-    intro_index = next(i for i, m in enumerate(md) if m.startswith("Note de A à F"))
-    assert grade_index < intro_index
+    # Sur la page de résultat : en-tête compact, puis la note, puis la présentation.
+    assert "sg-brand compact" in md[1] and "sg-lead" not in md[1]
+    grade_index = next(i for i, m in enumerate(md) if "aria-label='Note C'" in m)
+    intro_index = next(i for i, m in enumerate(md) if "Note de A à F" in m)
+    disclaimer_index = next(i for i, m in enumerate(md) if "conseil en investissement" in m)
+    assert grade_index < intro_index < disclaimer_index
 
+
+def app_functions():
+    """Fonctions de app.py, sans lancer la page."""
+    source = Path(APP).read_text(encoding="utf-8").replace("\nmain()\n", "\n")
+    namespace = {"__name__": "app_functions", "__file__": APP}
+    exec(compile(source, APP, "exec"), namespace)
+    return namespace
+
+
+def test_dark_theme_has_its_own_logo_and_colors():
+    app = app_functions()
+    assert app["logo_data_uri"]("light") != app["logo_data_uri"]("dark")
+    assert "--sg-accent:#8fc4a1" in app["theme_css"]("dark")
+    assert "--sg-accent:#2f5d46" in app["theme_css"]("light")
+
+
+def test_criteria_wording():
+    criteria_text = app_functions()["criteria_text"]
+    assert criteria_text(0, 5) == "Aucun critère validé sur 5"
+    assert criteria_text(1, 5) == "1 critère validé sur 5"
+    assert criteria_text(4, 4) == "4 critères validés sur 4"
