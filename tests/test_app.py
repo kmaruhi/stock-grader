@@ -316,3 +316,16 @@ def test_one_line_hint_under_questions():
     md = all_markdown(run("AAPL"))
     assert "<div class='sg-hint'><b>TTM</b> = les 12 derniers mois publiés" in md
     assert "<b>N/A</b> = donnée manquante chez Yahoo, non comptée comme Non." in md
+
+
+def test_intro_and_disclaimer_are_split_into_lines():
+    md = all_markdown(AppTest.from_file(APP).run())
+    assert (
+        "<span class='sg-line'>La santé financière d’une entreprise notée de A à F,</span> "
+        "<span class='sg-line'>à partir de 5 questions sur son chiffre d’affaires et son Free Cash Flow.</span> "
+        "<span class='sg-line'>Données Yahoo Finance.</span>" in md
+    )
+    assert (
+        "<span class='sg-line'>Outil pédagogique : cette note ne constitue pas un conseil en investissement.</span> "
+        "<span class='sg-line'>Les données proviennent de Yahoo Finance" in md
+    )
