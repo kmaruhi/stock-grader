@@ -51,11 +51,17 @@ def test_invalid_grade_in_file(tmp_path):
         load_references(path)
 
 
-def test_empty_template_is_explained(capsys):
-    assert main(["--verifier", str(Path(__file__).parent.parent / "references.csv")], source=FakeSource()) == 2
+def test_empty_file_is_explained(tmp_path, capsys):
+    assert main(["--verifier", write(tmp_path, "ticker,note_attendue,commentaire\n")], source=FakeSource()) == 2
     assert "Aucune note de référence" in capsys.readouterr().err
 
 
 def test_no_argument_is_an_error(capsys):
     with pytest.raises(SystemExit):
         main([], source=FakeSource())
+
+
+def test_repository_reference_file_is_valid():
+    # Le fichier rempli par l'enseignante doit rester lisible (tickers + notes valides).
+    references = load_references(Path(__file__).parent.parent / "references.csv")
+    assert references and all(r.expected in "ABCDF" for r in references)
