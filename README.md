@@ -25,8 +25,12 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Saisir un ticker, puis « Noter » : la note s'affiche en grand (A vert → F rouge),
-suivie des 5 questions avec les deux montants comparés, leurs exercices et les notes.
+Saisir un ticker, puis « Noter » : le nom de la société s'affiche à côté du ticker,
+puis la note en grand (A vert → F rouge) et les 5 questions. Chaque question indique
+sous son titre les périodes comparées (ex. « TTM au 30/06/2025 vs exercice 2023 », avec
+⚠️ quand une année sans données a été remplacée par l'exercice le plus proche) et,
+à droite, les deux montants. En bas : la date des prochains résultats et le nombre
+de jours restants (calendrier Yahoo Finance).
 Les données de chaque ticker sont mises en cache 24 h ; les erreurs et les résultats
 incomplets (N/A) ne le sont pas, car ils peuvent venir d'une erreur passagère de Yahoo.
 Le bouton « Actualiser » force une nouvelle requête. Le ticker figure dans l'URL

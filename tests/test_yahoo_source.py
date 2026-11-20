@@ -1,6 +1,6 @@
 """Tests de l'adaptateur yfinance avec un faux objet Ticker (aucun accès réseau)."""
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -138,3 +138,43 @@ class RateLimited(FakeTicker):
 def test_rate_limit_gives_clear_error_even_without_data():
     with pytest.raises(DataSourceError, match="limite temporairement"):
         source_for(RateLimited()).fetch("AAPL")
+
+
+INCOME = {"income_stmt": frame({"Total Revenue": [400]}, ["2024-12-31"])}
+
+
+def test_name_falls_back_to_price_history_metadata():
+    t = FakeTicker(info={}, **INCOME)
+    t.history_metadata = {"longName": "LVMH Moët Hennessy Louis Vuitton SE"}
+    assert source_for(t).fetch("MC.PA").company_name == "LVMH Moët Hennessy Louis Vuitton SE"
+
+
+def test_name_from_info_has_priority():
+    t = FakeTicker(**INCOME)
+    t.history_metadata = {"longName": "Autre nom"}
+    assert source_for(t).fetch("X").company_name == "Fake Inc."
+
+
+def test_no_name_anywhere_is_none():
+    assert source_for(FakeTicker(info={}, **INCOME)).fetch("X").company_name is None
+
+
+def test_next_earnings_from_calendar():
+    t = FakeTicker(**INCOME)
+    t.calendar = {"Earnings Date": [date(2027, 3, 2), date(2027, 2, 25)]}
+    assert source_for(t).fetch("X").next_earnings == (date(2027, 2, 25), date(2027, 3, 2))
+
+
+def test_next_earnings_falls_back_to_info_timestamp():
+    stamp = int(datetime(2027, 3, 1, 21, 30, tzinfo=timezone.utc).timestamp())  # après clôture
+    t = FakeTicker(info={"earningsTimestamp": stamp}, **INCOME)
+    assert source_for(t).fetch("X").next_earnings == (date(2027, 3, 1),)
+
+
+def test_calendar_failure_is_not_fatal():
+    class BrokenCalendar(FakeTicker):
+        @property
+        def calendar(self):
+            raise ConnectionError
+
+    assert source_for(BrokenCalendar(info={}, **INCOME)).fetch("X").next_earnings == ()

@@ -155,7 +155,8 @@ class YFinanceDataSource:
             ),
             free_cash_flow=MetricHistory(ttm=fcf_ttm, annual=tuple(_fcf_points(cash_annual))),
             currency=info.get("financialCurrency") or info.get("currency"),
-            company_name=info.get("longName") or info.get("shortName"),
+            company_name=self._company_name(t, info),
+            next_earnings=self._next_earnings(t, info),
         )
 
     @staticmethod
@@ -169,6 +170,38 @@ class YFinanceDataSource:
                 return None
             raise
         return frame if isinstance(frame, pd.DataFrame) else None
+
+    @staticmethod
+    def _company_name(t: Any, info: dict) -> str | None:
+        name = info.get("longName") or info.get("shortName")
+        if name:
+            return name
+        # Repli : les métadonnées du graphique de cours (requête plus légère,
+        # souvent disponible quand le profil de la société échoue).
+        try:
+            meta = t.history_metadata
+            return meta.get("longName") or meta.get("shortName") or None
+        except Exception:
+            return None
+
+    @staticmethod
+    def _next_earnings(t: Any, info: dict) -> tuple[date, ...]:
+        """Date (ou fourchette estimée) de la prochaine publication ; facultative."""
+        try:
+            dates = (t.calendar or {}).get("Earnings Date") or []
+            found = tuple(sorted(d for d in (_to_date(x) for x in dates) if d is not None))
+            if found:
+                return found[:2]
+        except Exception:
+            pass
+        stamps = [info.get(k) for k in ("earningsTimestampStart", "earningsTimestampEnd")]
+        if not any(stamps):
+            stamps = [info.get("earningsTimestamp")]
+        found_dates: list[date] = []
+        for stamp in stamps:
+            if isinstance(stamp, (int, float)) and stamp > 0:
+                found_dates.append(pd.Timestamp(stamp, unit="s").date())
+        return tuple(sorted(set(found_dates)))
 
     @staticmethod
     def _info(t: Any) -> dict:

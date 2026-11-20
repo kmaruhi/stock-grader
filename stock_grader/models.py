@@ -46,6 +46,13 @@ class MetricHistory:
         points = self.annual_with_data()
         return points[-1] if points else None
 
+    def blank_years_before(self, point: DataPoint) -> list[DataPoint]:
+        """Exercices vides plus anciens que ``point`` (ignorés lors du choix)."""
+        return sorted(
+            (p for p in self.annual if not p.has_value and p.period_end < point.period_end),
+            key=lambda p: p.period_end,
+        )
+
     def blank_years_after(self, point: DataPoint) -> list[DataPoint]:
         """Exercices vides plus récents que ``point`` (ignorés lors du choix)."""
         return sorted(
@@ -61,3 +68,6 @@ class FinancialData:
     free_cash_flow: MetricHistory
     currency: str | None = None
     company_name: str | None = None
+    # Prochaine publication de résultats : une date, ou deux si Yahoo donne une
+    # fourchette estimée (début, fin). Vide si inconnue.
+    next_earnings: tuple[date, ...] = ()
