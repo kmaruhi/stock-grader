@@ -43,9 +43,10 @@ ASSETS = Path(__file__).parent / "assets"
 BRAND = "LVLUP with Lani"
 APP_NAME = "ORA SCORE"
 
+# Textes affichés ligne par ligne (un retour à la ligne entre chaque élément).
 DISCLAIMER = (
-    "Outil pédagogique : cette note ne constitue pas un conseil en investissement. "
-    "Les données proviennent de Yahoo Finance et peuvent contenir des erreurs ou des retards."
+    "Outil pédagogique : cette note ne constitue pas un conseil en investissement.",
+    "Les données proviennent de Yahoo Finance et peuvent contenir des erreurs ou des retards.",
 )
 
 # Rappel d'une ligne sous les questions (remplace l'ancien mode d'emploi).
@@ -85,7 +86,11 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
         font-size:clamp(2.2rem, 9vw, 3.4rem); letter-spacing:.18em; padding-left:.18em;}
 .sg-brand .sg-lead, .sg-lead {width:100%; max-width:90%; margin:0; opacity:.7; font-weight:300; line-height:1.55;
           font-size:clamp(1rem, 3.4vw, 1.15rem);}
-@media (min-width:768px) {.sg-brand .sg-lead, .sg-lead {max-width:65%;}}
+@media (min-width:768px) {
+  .sg-brand .sg-lead, .sg-lead {max-width:80%;}
+  .sg-line {display:block;}
+  .sg-brand .sg-line {white-space:nowrap;}
+}
 /* Au-dessus d'un résultat : même centrage, logo et titre réduits d'environ 40 %. */
 .sg-brand.compact {gap:clamp(.35rem, 1.2vw, .55rem); margin:0 0 1rem;}
 .sg-brand.compact img {width:13%; max-width:4.2rem;}
@@ -366,9 +371,16 @@ def _choose(symbol: str) -> None:
 
 
 LEAD = (
-    "La santé financière d’une entreprise notée de A à F, à partir de 5 questions "
-    "sur son chiffre d’affaires et son Free Cash Flow. Données Yahoo Finance."
+    "La santé financière d’une entreprise notée de A à F,",
+    "à partir de 5 questions sur son chiffre d’affaires et son Free Cash Flow.",
+    "Données Yahoo Finance.",
 )
+
+
+def lines_html(lines: tuple[str, ...]) -> str:
+    """Une ligne par élément sur ordinateur ; sur téléphone, le texte s'enchaîne
+    naturellement (sinon des mots se retrouvent isolés, ex. « A à F, »)."""
+    return " ".join(f"<span class='sg-line'>{html.escape(line)}</span>" for line in lines)
 
 
 def render_header(theme: str, compact: bool) -> None:
@@ -376,7 +388,7 @@ def render_header(theme: str, compact: bool) -> None:
     (réduits au-dessus d'un résultat pour que la note reste visible sur téléphone)."""
     logo = logo_data_uri(theme)
     logo_html = f"<img src='{logo}' alt='Logo {BRAND}'>" if logo else ""
-    lead = "" if compact else f"<p class='sg-lead'>{html.escape(LEAD)}</p>"
+    lead = "" if compact else f"<p class='sg-lead'>{lines_html(LEAD)}</p>"
     st.markdown(
         f"<div class='sg-brand{' compact' if compact else ''}'>{logo_html}"
         f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>{APP_NAME}</div>"
@@ -387,8 +399,8 @@ def render_header(theme: str, compact: bool) -> None:
 
 def render_intro(compact: bool) -> None:
     if compact:
-        st.markdown(f"<p class='sg-lead' style='margin:0'>{html.escape(LEAD)}</p>", unsafe_allow_html=True)
-    st.markdown(f"<div class='sg-disclaimer'>{html.escape(DISCLAIMER)}</div>", unsafe_allow_html=True)
+        st.markdown(f"<p class='sg-lead' style='margin:0'>{lines_html(LEAD)}</p>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sg-disclaimer'>{lines_html(DISCLAIMER)}</div>", unsafe_allow_html=True)
 
 
 def render_choices(query: str, choices: list[CompanyMatch]) -> None:
