@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import re
+from urllib.parse import quote
 from datetime import date, datetime, timezone
 
 import streamlit as st
@@ -21,6 +22,11 @@ from stock_grader.sources import DataSourceError
 from stock_grader.sources.yahoo import YFinanceDataSource
 
 CACHE_TTL_SECONDS = 24 * 60 * 60
+
+# Lien « Signaler un problème » : adresse d'un formulaire (ex. Google Forms) ou
+# « mailto:adresse@exemple.com ». Vide = lien masqué. Le dépôt étant public, ce lien
+# est visible de tous.
+LIEN_SIGNALEMENT = "mailto:wealthwithlani@gmail.com"
 TICKER_PATTERN = re.compile(r"[A-Z0-9.\-^=]{1,20}")
 
 # Fond et couleur du texte du badge, du vert (A) au rouge (F).
@@ -204,6 +210,22 @@ def render_earnings(data: FinancialData, today: date) -> None:
     )
 
 
+def report_link(ticker: str | None = None) -> str | None:
+    """Lien de signalement ; pour un e-mail, l'objet mentionne le ticker consulté."""
+    if not LIEN_SIGNALEMENT:
+        return None
+    if LIEN_SIGNALEMENT.startswith("mailto:") and ticker:
+        return f"{LIEN_SIGNALEMENT}?subject={quote(f'Notation d’actions : problème avec {ticker}')}"
+    return LIEN_SIGNALEMENT
+
+
+def _submit_search() -> None:
+    """Appelé au clic sur « Noter », avant la réexécution de la page."""
+    ticker = st.session_state["ticker_input"].strip().upper()
+    st.session_state["ticker_input"] = ticker
+    st.query_params["ticker"] = ticker
+
+
 def main() -> None:
     st.set_page_config(page_title="Notation d'actions", page_icon="📈", layout="centered")
     st.title("📈 Notation d'actions")
@@ -217,12 +239,15 @@ def main() -> None:
 
     # Le ticker courant vit dans l'URL (?ticker=AAPL) : lien partageable, et le
     # résultat reste affiché lors des réexécutions (ex. bouton « Actualiser »).
-    current = st.query_params.get("ticker", "")
+    # Le champ a une clé fixe : s'il était recréé avec une nouvelle valeur par défaut à
+    # chaque recherche, Streamlit le traiterait comme un nouveau champ et perdrait la
+    # saisie (il fallait alors chercher deux fois).
+    if "ticker_input" not in st.session_state:
+        st.session_state["ticker_input"] = st.query_params.get("ticker", "")
     with st.form("recherche"):
-        typed = st.text_input("Ticker", value=current, placeholder="ex. AAPL, MSFT, MC.PA")
-        if st.form_submit_button("Noter", type="primary"):
-            current = typed.strip().upper()
-            st.query_params["ticker"] = current
+        st.text_input("Ticker", key="ticker_input", placeholder="ex. AAPL, MSFT, MC.PA")
+        st.form_submit_button("Noter", type="primary", on_click=_submit_search)
+    current = st.query_params.get("ticker", "")
 
     if not current:
         st.caption("Saisissez un symbole Yahoo Finance (suffixe .PA pour Paris, .DE pour Francfort, etc.).")
@@ -260,6 +285,9 @@ def main() -> None:
     info_col.caption(
         f"Données Yahoo Finance récupérées le {fetched_at:%d/%m/%Y à %H:%M} UTC. {cache_info}"
     )
+    link = report_link(current)
+    if link:
+        st.markdown(f"🚩 Un résultat vous semble faux ? [Signaler un problème]({link})")
     if button_col.button("Actualiser", help="Ignorer le cache et interroger de nouveau Yahoo Finance"):
         fetch_data.clear(current)
         st.rerun()
