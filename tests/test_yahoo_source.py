@@ -155,6 +155,12 @@ def test_name_from_info_has_priority():
     assert source_for(t).fetch("X").company_name == "Fake Inc."
 
 
+def test_currency_falls_back_to_price_history_metadata():
+    t = FakeTicker(info={}, **INCOME)
+    t.history_metadata = {"currency": "USD"}
+    assert source_for(t).fetch("NFLX").currency == "USD"
+
+
 def test_no_name_anywhere_is_none():
     assert source_for(FakeTicker(info={}, **INCOME)).fetch("X").company_name is None
 

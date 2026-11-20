@@ -41,6 +41,7 @@ GRADE_COLORS = {
 
 ASSETS = Path(__file__).parent / "assets"
 BRAND = "LVLUP with Lani"
+APP_NAME = "ORA SCORE"
 
 DISCLAIMER = (
     "Outil pédagogique : cette note ne constitue pas un conseil en investissement. "
@@ -112,17 +113,22 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
 .stMarkdown a {color:var(--sg-accent); text-decoration-thickness:1px; text-underline-offset:3px;}
 
 /* En-tête de marque */
-.sg-brand {text-align:center; margin:.5rem 0 1.75rem;}
-.sg-brand img {width:6.5rem; height:auto;}
-.sg-wordmark {font-family:'Marcellus',serif; letter-spacing:.32em; font-size:.8rem;
-              text-transform:uppercase; opacity:.8; margin-top:.6rem;}
-.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; font-size:2.6rem;
-        line-height:1.1; margin:.35rem 0 .5rem;}
+.sg-brand {text-align:center; margin:0 0 1.75rem;}
+.sg-brand img {width:11rem; height:auto;}
+.sg-wordmark {font-family:'Marcellus',serif; letter-spacing:.32em; font-size:1.1rem;
+              text-transform:uppercase; opacity:.85; margin-top:.9rem;}
+.sg-h1 {font-family:'Cormorant Garamond',serif; font-weight:500; font-size:2.9rem;
+        letter-spacing:.18em; padding-left:.18em; line-height:1.1; margin:.5rem 0 .6rem;}
 .sg-lead {opacity:.7; font-weight:300; max-width:32rem; margin:0 auto;}
 .sg-brand.compact {display:flex; align-items:center; gap:.75rem; text-align:left; margin:0 0 1rem;}
-.sg-brand.compact img {width:2.6rem;}
-.sg-brand.compact .sg-wordmark {margin:0; font-size:.7rem;}
-.sg-brand.compact .sg-h1 {font-size:1.45rem; margin:0;}
+.sg-brand.compact img {width:4.25rem;}
+.sg-brand.compact .sg-wordmark {margin:0; font-size:.85rem;}
+.sg-brand.compact .sg-h1 {font-size:1.75rem; letter-spacing:.14em; padding-left:0; margin:.1rem 0 0;}
+@media (max-width:640px) {
+  .sg-brand img {width:9rem;}
+  .sg-wordmark {font-size:.95rem;}
+  .sg-h1 {font-size:2.5rem;}
+}
 .sg-disclaimer {border-left:2px solid var(--sg-accent); padding:.35rem 0 .35rem .9rem;
                 font-size:.85rem; font-weight:300; opacity:.8; margin:1.25rem 0;}
 
@@ -359,7 +365,7 @@ def report_link(ticker: str | None = None) -> str | None:
     if not LIEN_SIGNALEMENT:
         return None
     if LIEN_SIGNALEMENT.startswith("mailto:") and ticker:
-        return f"{LIEN_SIGNALEMENT}?subject={quote(f'Notation d’actions : problème avec {ticker}')}"
+        return f"{LIEN_SIGNALEMENT}?subject={quote(f'{APP_NAME} : problème avec {ticker}')}"
     return LIEN_SIGNALEMENT
 
 
@@ -409,7 +415,7 @@ def render_header(theme: str, compact: bool) -> None:
     lead = "" if compact else f"<p class='sg-lead'>{html.escape(LEAD)}</p>"
     st.markdown(
         f"<div class='sg-brand{' compact' if compact else ''}'>{logo_html}<div>"
-        f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>Notation d'actions</div>"
+        f"<div class='sg-wordmark'>{BRAND}</div><div class='sg-h1'>{APP_NAME}</div>"
         f"{lead}</div></div>",
         unsafe_allow_html=True,
     )
@@ -437,7 +443,7 @@ def render_choices(query: str, choices: list[CompanyMatch]) -> None:
 
 
 def main() -> None:
-    st.set_page_config(page_title=f"Notation d'actions · {BRAND}", page_icon=_page_icon(), layout="centered")
+    st.set_page_config(page_title=f"{APP_NAME} · {BRAND}", page_icon=_page_icon(), layout="centered")
     theme = theme_type()
     st.markdown(CSS + theme_css(theme), unsafe_allow_html=True)
 

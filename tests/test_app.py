@@ -102,7 +102,7 @@ def test_initial_page_in_french():
     at = AppTest.from_file(APP).run()
     assert not at.exception
     md = all_markdown(at)
-    assert "<div class='sg-h1'>Notation d'actions</div>" in md
+    assert "<div class='sg-h1'>ORA SCORE</div>" in md
     assert "LVLUP with Lani" in md and "data:image/png;base64," in md  # logo de la marque
     assert at.text_input[0].label == "Société ou symbole"
     assert "ne constitue pas un conseil en investissement" in md

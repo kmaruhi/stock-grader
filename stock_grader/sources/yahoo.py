@@ -184,7 +184,7 @@ class YFinanceDataSource:
                 annual=tuple(_series_points(_find_row(income_annual, REVENUE_ROWS))),
             ),
             free_cash_flow=MetricHistory(ttm=fcf_ttm, annual=tuple(_fcf_points(cash_annual))),
-            currency=info.get("financialCurrency") or info.get("currency"),
+            currency=self._currency(t, info),
             company_name=self._company_name(t, info),
             next_earnings=self._next_earnings(t, info),
         )
@@ -200,6 +200,17 @@ class YFinanceDataSource:
                 return None
             raise
         return frame if isinstance(frame, pd.DataFrame) else None
+
+    @staticmethod
+    def _currency(t: Any, info: dict) -> str | None:
+        currency = info.get("financialCurrency") or info.get("currency")
+        if currency:
+            return currency
+        # Repli : métadonnées du graphique de cours, comme pour le nom de la société.
+        try:
+            return t.history_metadata.get("currency") or None
+        except Exception:
+            return None
 
     @staticmethod
     def _company_name(t: Any, info: dict) -> str | None:
