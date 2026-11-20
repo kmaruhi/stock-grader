@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from stock_grader.models import CompanyMatch
 from stock_grader.sources import DataSourceError
 from stock_grader.sources.yahoo import YFinanceDataSource
 
@@ -41,6 +42,24 @@ SAMPLES = {
 
 
 CALLS = []
+SEARCHES = []
+
+# Résultats de recherche factices (la vraie recherche Yahoo n'est jamais appelée).
+SEARCH_RESULTS = {
+    "apple": [
+        CompanyMatch("AAPL", "Apple Inc.", "NASDAQ", "EQUITY"),
+        CompanyMatch("AAPU", "Direxion Daily AAPL Bull 2X Shares", "NASDAQ", "ETF"),
+    ],
+    "lvmh": [
+        CompanyMatch("MC.PA", "LVMH Moët Hennessy - Louis Vuitton", "Paris", "EQUITY"),
+        CompanyMatch("LVMUY", "LVMH Moët Hennessy - Louis Vuitton", "OTC Markets", "EQUITY"),
+        CompanyMatch("LVMH.X", "LVMH Futures", "CME", "FUTURE"),
+    ],
+    "aapl": [
+        CompanyMatch("AAPL", "Apple Inc.", "NASDAQ", "EQUITY"),
+        CompanyMatch("AAPL.TO", "Apple CDR", "Toronto", "EQUITY"),
+    ],
+}
 
 
 @pytest.fixture(autouse=True)
@@ -53,7 +72,15 @@ def fake_source(monkeypatch):
             raise DataSourceError(f"Impossible de récupérer les données de {ticker}")
         return SAMPLES[ticker]
 
+    def search(self, query):
+        SEARCHES.append(query)
+        if query == "panne":
+            raise DataSourceError("Recherche impossible")
+        return SEARCH_RESULTS.get(query.lower(), [])
+
+    SEARCHES.clear()
     monkeypatch.setattr(YFinanceDataSource, "fetch", fetch)
+    monkeypatch.setattr(YFinanceDataSource, "search", search)
     import streamlit as st
 
     st.cache_data.clear()
@@ -75,7 +102,7 @@ def test_initial_page_in_french():
     at = AppTest.from_file(APP).run()
     assert not at.exception
     assert at.title[0].value == "📈 Notation d'actions"
-    assert at.text_input[0].label == "Ticker"
+    assert at.text_input[0].label == "Société ou symbole"
     assert "ne constitue pas un conseil en investissement" in at.info[0].value
     assert at.expander[0].label == "Mode d'emploi"
     assert "MC.PA" in "\n".join(m.value for m in at.expander[0].markdown)
@@ -170,7 +197,7 @@ def test_shared_link_loads_ticker():
 
 def test_invalid_ticker_rejected_without_fetch():
     at = run("AA PL; <b>")
-    assert "n'est pas un ticker valide" in at.error[0].value
+    assert "Aucune société trouvée" in at.warning[0].value
     assert CALLS == []
 
 
@@ -202,3 +229,56 @@ def test_report_link_hidden_when_not_configured(tmp_path):
     at.run()
     assert not at.exception
     assert "Signaler un problème" not in all_markdown(at)
+
+
+def test_search_by_name_with_single_stock_goes_straight_to_grade():
+    at = run("Apple")  # une seule action (l'autre résultat est un ETF)
+    assert at.subheader[0].value == "Apple Inc. `AAPL`"
+    assert at.text_input[0].value == "AAPL"
+    assert at.query_params["ticker"] in ("AAPL", ["AAPL"])
+
+
+def test_exact_symbol_goes_straight_to_grade():
+    at = run("aapl")
+    assert at.subheader[0].value == "Apple Inc. `AAPL`"
+    assert CALLS == ["AAPL"]
+
+
+def test_ambiguous_name_offers_choices_then_grades_the_chosen_one():
+    SAMPLES["MC.PA"] = replace(SAMPLES["AAPL"], ticker="MC.PA", company_name="LVMH")
+    try:
+        at = run("lvmh")
+        assert "Plusieurs sociétés correspondent à « lvmh »" in all_markdown(at)
+        labels = [b.label for b in at.button if b.key and b.key.startswith("choix_")]
+        assert labels == [
+            r"LVMH Moët Hennessy - Louis Vuitton — MC.PA \(Paris\)",  # échappé pour Markdown
+            r"LVMH Moët Hennessy - Louis Vuitton — LVMUY \(OTC Markets\)",
+        ]  # actions seulement, pas les contrats à terme
+        assert not at.subheader and CALLS == []
+        next(b for b in at.button if b.key == "choix_MC.PA").click().run()
+        assert not at.exception
+        assert at.subheader[0].value == "LVMH `MC.PA`"
+        assert at.text_input[0].value == "MC.PA"
+        assert not any(b.key and b.key.startswith("choix_") for b in at.button)
+    finally:
+        del SAMPLES["MC.PA"]
+
+
+def test_search_unavailable_falls_back_to_symbol():
+    at = run("panne")
+    assert SEARCHES == ["panne"]
+    assert CALLS == ["PANNE"]  # essayé comme symbole
+    assert "Erreur" in at.error[0].value
+
+
+def test_result_comes_before_intro_but_home_page_starts_with_it():
+    home = AppTest.from_file(APP).run()
+    assert home.info  # avertissement pédagogique visible dès l'accueil
+    at = run("AAPL")
+    assert "ne constitue pas un conseil en investissement" in at.info[0].value  # toujours présent
+    # Sur la page de résultat, la note est affichée avant la présentation.
+    md = [m.value for m in at.markdown]
+    grade_index = next(i for i, m in enumerate(md) if ">C</div>" in m)
+    intro_index = next(i for i, m in enumerate(md) if m.startswith("Note de A à F"))
+    assert grade_index < intro_index
+

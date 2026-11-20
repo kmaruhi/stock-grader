@@ -10,7 +10,7 @@ from datetime import date, datetime, timezone
 import streamlit as st
 
 from stock_grader.grading import Answer, GradeResult, QuestionResult, grade
-from stock_grader.models import FinancialData
+from stock_grader.models import CompanyMatch, FinancialData
 from stock_grader.report import (
     SHORT_TITLES,
     compared_periods,
@@ -28,6 +28,7 @@ CACHE_TTL_SECONDS = 24 * 60 * 60
 # est visible de tous.
 LIEN_SIGNALEMENT = "mailto:wealthwithlani@gmail.com"
 TICKER_PATTERN = re.compile(r"[A-Z0-9.\-^=]{1,20}")
+MAX_CHOICES = 6  # sociétés proposées quand une recherche par nom est ambiguë
 
 # Fond et couleur du texte du badge, du vert (A) au rouge (F).
 GRADE_COLORS = {
@@ -45,11 +46,12 @@ DISCLAIMER = (
 )
 
 HOW_TO = """
-**1. Saisir un ticker** (le symbole de l'action sur Yahoo Finance), puis cliquer sur « Noter ».
-- Actions américaines : le symbole seul, ex. `AAPL` (Apple), `MSFT` (Microsoft).
-- Autres places : ajouter le suffixe de la bourse, ex. `MC.PA` (LVMH, Paris),
-  `SAP.DE` (Francfort), `SHOP.TO` (Toronto). En cas de doute, chercher la société
-  sur finance.yahoo.com et recopier le symbole affiché.
+**1. Saisir le nom de la société ou son symbole**, puis cliquer sur « Noter ».
+- Par le nom : ex. `Netflix`, `LVMH`. Si plusieurs sociétés correspondent,
+  choisir la bonne dans la liste proposée (la bourse est indiquée entre parenthèses).
+- Par le symbole (ticker) Yahoo Finance : ex. `AAPL` (Apple), `MSFT` (Microsoft) ;
+  hors des États-Unis, avec le suffixe de la bourse, ex. `MC.PA` (LVMH, Paris),
+  `SAP.DE` (Francfort), `SHOP.TO` (Toronto).
 
 **2. Lire les 5 questions.**
 
@@ -95,6 +97,12 @@ CURRENCY_SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "JPY": "¥", "CAD": "
 # Couleurs neutres (transparences) pour rester lisibles en thème clair comme sombre.
 CSS = """
 <style>
+/* Moins d'espace en haut de page : sur téléphone, la note reste visible sans défiler. */
+.block-container, [data-testid="stMainBlockContainer"] {padding-top:4rem;}
+@media (max-width:640px) {
+  .block-container, [data-testid="stMainBlockContainer"] {padding-top:3.75rem;}
+  h1 {font-size:1.9rem !important; padding-top:0 !important;}
+}
 .sg-list {border:1px solid rgba(128,128,128,.3); border-radius:.75rem; overflow:hidden;}
 .sg-row {display:flex; align-items:center; gap:.9rem; padding:.85rem 1rem;}
 .sg-row + .sg-row, .sg-item + .sg-item {border-top:1px solid rgba(128,128,128,.2);}
@@ -120,6 +128,36 @@ CSS = """
 def fetch_data(ticker: str) -> tuple[FinancialData, datetime]:
     # Les exceptions (DataSourceError) ne sont pas mises en cache par Streamlit.
     return YFinanceDataSource().fetch(ticker), datetime.now(timezone.utc)
+
+
+@st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner=False)
+def search_companies(query: str) -> list[CompanyMatch]:
+    return YFinanceDataSource().search(query)
+
+
+def resolve_search(query: str, matches: list[CompanyMatch]) -> tuple[str | None, list[CompanyMatch]]:
+    """Symbole à noter directement, sinon la liste des sociétés à proposer.
+
+    - symbole exact (ex. « aapl ») ou une seule action trouvée : noté directement ;
+    - plusieurs actions (ex. « netflix » : Nasdaq, Francfort, Mexico…) : liste de choix ;
+    - rien trouvé (ou recherche indisponible) : le texte est essayé comme symbole.
+    """
+    symbol = query.strip().upper()
+    if any(m.symbol == symbol for m in matches):
+        return symbol, []
+    stocks = [m for m in matches if m.kind == "EQUITY"][:MAX_CHOICES]
+    if len(stocks) == 1:
+        return stocks[0].symbol, []
+    if stocks:
+        return None, stocks
+    if TICKER_PATTERN.fullmatch(symbol):
+        return symbol, []
+    return None, []
+
+
+def choice_label(match: CompanyMatch) -> str:
+    exchange = f" ({match.exchange})" if match.exchange else ""
+    return _escape_md(f"{match.name} — {match.symbol}{exchange}")
 
 
 def _escape_md(text: str) -> str:
@@ -219,16 +257,40 @@ def report_link(ticker: str | None = None) -> str | None:
     return LIEN_SIGNALEMENT
 
 
-def _submit_search() -> None:
-    """Appelé au clic sur « Noter », avant la réexécution de la page."""
-    ticker = st.session_state["ticker_input"].strip().upper()
+def _show_ticker(ticker: str) -> None:
     st.session_state["ticker_input"] = ticker
     st.query_params["ticker"] = ticker
 
 
-def main() -> None:
-    st.set_page_config(page_title="Notation d'actions", page_icon="📈", layout="centered")
-    st.title("📈 Notation d'actions")
+def _submit_search() -> None:
+    """Appelé au clic sur « Noter », avant la réexécution de la page."""
+    query = st.session_state["ticker_input"].strip()
+    st.session_state.pop("choices", None)
+    st.session_state.pop("not_found", None)
+    if not query:
+        st.query_params.pop("ticker", None)
+        return
+    try:
+        matches = search_companies(query)
+    except DataSourceError:
+        matches = []  # recherche indisponible : le texte sera essayé comme symbole
+    ticker, choices = resolve_search(query, matches)
+    if ticker:
+        _show_ticker(ticker)
+        return
+    st.query_params.pop("ticker", None)
+    if choices:
+        st.session_state["choices"] = (query, choices)
+    else:
+        st.session_state["not_found"] = query
+
+
+def _choose(symbol: str) -> None:
+    st.session_state.pop("choices", None)
+    _show_ticker(symbol)
+
+
+def render_intro() -> None:
     st.write(
         "Note de A à F selon l'évolution du chiffre d'affaires et du Free Cash Flow "
         "(TTM comparé aux exercices annuels, données Yahoo Finance)."
@@ -237,21 +299,65 @@ def main() -> None:
     with st.expander("Mode d'emploi"):
         st.markdown(HOW_TO)
 
+
+def render_choices(query: str, choices: list[CompanyMatch]) -> None:
+    st.markdown(f"**Plusieurs sociétés correspondent à « {_escape_md(query)} »** : choisissez-en une.")
+    for match in choices:
+        st.button(
+            choice_label(match),
+            key=f"choix_{match.symbol}",
+            on_click=_choose,
+            args=(match.symbol,),
+            use_container_width=True,
+        )
+    st.caption("La même société peut être cotée sur plusieurs bourses : la bourse est indiquée entre parenthèses.")
+
+
+def main() -> None:
+    st.set_page_config(page_title="Notation d'actions", page_icon="📈", layout="centered")
+    st.markdown(CSS, unsafe_allow_html=True)
+    st.title("📈 Notation d'actions")
+
     # Le ticker courant vit dans l'URL (?ticker=AAPL) : lien partageable, et le
     # résultat reste affiché lors des réexécutions (ex. bouton « Actualiser »).
+    current = st.query_params.get("ticker", "")
+    choices = st.session_state.get("choices")
+    not_found = st.session_state.get("not_found")
+    # Page d'accueil : présentation en haut. Dès qu'un résultat est affiché, elle passe
+    # sous le résultat pour que la note soit visible sans défiler (téléphone).
+    showing = bool(current or choices or not_found)
+    if not showing:
+        render_intro()
+
     # Le champ a une clé fixe : s'il était recréé avec une nouvelle valeur par défaut à
     # chaque recherche, Streamlit le traiterait comme un nouveau champ et perdrait la
     # saisie (il fallait alors chercher deux fois).
     if "ticker_input" not in st.session_state:
-        st.session_state["ticker_input"] = st.query_params.get("ticker", "")
+        st.session_state["ticker_input"] = current
     with st.form("recherche"):
-        st.text_input("Ticker", key="ticker_input", placeholder="ex. AAPL, MSFT, MC.PA")
+        st.text_input("Société ou symbole", key="ticker_input", placeholder="ex. Netflix, LVMH, AAPL, MC.PA")
         st.form_submit_button("Noter", type="primary", on_click=_submit_search)
-    current = st.query_params.get("ticker", "")
 
-    if not current:
-        st.caption("Saisissez un symbole Yahoo Finance (suffixe .PA pour Paris, .DE pour Francfort, etc.).")
-        return
+    if choices:
+        render_choices(*choices)
+    elif not_found:
+        st.warning(
+            f"Aucune société trouvée pour « {not_found} ». Vérifiez l'orthographe ou saisissez "
+            "le symbole Yahoo Finance (ex. MC.PA pour LVMH)."
+        )
+    elif not current:
+        st.caption(
+            "Saisissez le nom d'une société (ex. Netflix) ou son symbole Yahoo Finance "
+            "(ex. NFLX ; suffixe .PA pour Paris, .DE pour Francfort, etc.)."
+        )
+    else:
+        render_result(current)
+    if showing:
+        st.divider()
+        render_intro()
+
+
+def render_result(current: str) -> None:
     if not TICKER_PATTERN.fullmatch(current):
         st.error(f"« {current} » n'est pas un ticker valide (lettres, chiffres et . - ^ = uniquement).")
         return
@@ -264,7 +370,6 @@ def main() -> None:
             return
 
     result = grade(data)
-    st.markdown(CSS, unsafe_allow_html=True)
     if data.company_name:
         st.subheader(f"{_escape_md(data.company_name)} `{data.ticker}`")
     else:
