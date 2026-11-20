@@ -26,7 +26,7 @@ CACHE_TTL_SECONDS = 24 * 60 * 60
 # Lien « Signaler un problème » : adresse d'un formulaire (ex. Google Forms) ou
 # « mailto:adresse@exemple.com ». Vide = lien masqué. Le dépôt étant public, ce lien
 # est visible de tous.
-LIEN_SIGNALEMENT = ""
+LIEN_SIGNALEMENT = "mailto:wealthwithlani@gmail.com"
 TICKER_PATTERN = re.compile(r"[A-Z0-9.\-^=]{1,20}")
 
 # Fond et couleur du texte du badge, du vert (A) au rouge (F).

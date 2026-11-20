@@ -186,21 +186,19 @@ def test_second_search_shows_new_ticker_immediately():
     assert at.subheader[0].value == "Apple Inc. `AAPL`"
 
 
-def test_report_link_hidden_until_configured():
+def test_report_link_under_result_with_ticker_in_subject():
     md = all_markdown(run("AAPL"))
-    assert "Signaler un problème" not in md
+    assert "[Signaler un problème](mailto:wealthwithlani@gmail.com?subject=" in md
+    assert "AAPL" in md.split("subject=")[1]
 
 
-def test_report_link_shown_with_ticker_in_email_subject(tmp_path):
-    source = Path(APP).read_text(encoding="utf-8").replace(
-        'LIEN_SIGNALEMENT = ""', 'LIEN_SIGNALEMENT = "mailto:prof@example.com"'
-    )
+def test_report_link_hidden_when_not_configured(tmp_path):
+    source = Path(APP).read_text(encoding="utf-8")
+    source = source.replace('LIEN_SIGNALEMENT = "mailto:wealthwithlani@gmail.com"', 'LIEN_SIGNALEMENT = ""')
     app = tmp_path / "app.py"
     app.write_text(source, encoding="utf-8")
     at = AppTest.from_file(str(app), default_timeout=30)
     at.query_params["ticker"] = "AAPL"
     at.run()
     assert not at.exception
-    md = all_markdown(at)
-    assert "[Signaler un problème](mailto:prof@example.com?subject=" in md
-    assert "AAPL" in md.split("subject=")[1]
+    assert "Signaler un problème" not in all_markdown(at)
