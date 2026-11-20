@@ -310,3 +310,9 @@ def test_criteria_wording():
     assert criteria_text(0, 5) == "Aucun critère validé sur 5"
     assert criteria_text(1, 5) == "1 critère validé sur 5"
     assert criteria_text(4, 4) == "4 critères validés sur 4"
+
+
+def test_one_line_hint_under_questions():
+    md = all_markdown(run("AAPL"))
+    assert "<div class='sg-hint'><b>TTM</b> = les 12 derniers mois publiés" in md
+    assert "<b>N/A</b> = donnée manquante chez Yahoo, non comptée comme Non." in md

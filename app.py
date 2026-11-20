@@ -48,6 +48,12 @@ DISCLAIMER = (
     "Les données proviennent de Yahoo Finance et peuvent contenir des erreurs ou des retards."
 )
 
+# Rappel d'une ligne sous les questions (remplace l'ancien mode d'emploi).
+HINT = (
+    "<b>TTM</b> = les 12 derniers mois publiés · <b>Exercice</b> = une année comptable complète · "
+    "<b>N/A</b> = donnée manquante chez Yahoo, non comptée comme Non."
+)
+
 ANSWER_ICONS = {Answer.YES: "✓", Answer.NO: "✕", Answer.NA: "–"}
 ANSWER_CLASSES = {Answer.YES: "yes", Answer.NO: "no", Answer.NA: "na"}
 ANSWER_LABELS = {Answer.YES: "Oui", Answer.NO: "Non", Answer.NA: "N/A"}
@@ -123,6 +129,8 @@ h3 code {font-family:'Jost',sans-serif !important; font-size:.5em !important; fo
 .sg-values .vs {opacity:.5; font-size:.8rem; padding:0 .15rem;}
 .sg-notes {padding:0 1.1rem .9rem 4.25rem; font-size:.78rem; font-weight:300; opacity:.75;}
 .sg-notes div + div {margin-top:.25rem;}
+.sg-hint {font-size:.78rem; font-weight:300; opacity:.65; margin:.6rem .25rem 0;}
+.sg-hint b {font-weight:500;}
 .sg-card {display:flex; align-items:center; justify-content:space-between; gap:1rem; background:var(--sg-card);
           border:1px solid var(--sg-line); border-radius:1rem; padding:.95rem 1.1rem; margin:1rem 0 .75rem;}
 .sg-muted {font-size:.85rem; opacity:.65; margin:1rem 0 .75rem;}
@@ -296,7 +304,7 @@ def question_html(q: QuestionResult, data: FinancialData) -> str:
 
 def render_questions(result: GradeResult, data: FinancialData) -> None:
     items = "".join(question_html(q, data) for q in result.questions)
-    st.markdown(f"<div class='sg-list'>{items}</div>", unsafe_allow_html=True)
+    st.markdown(f"<div class='sg-list'>{items}</div><div class='sg-hint'>{HINT}</div>", unsafe_allow_html=True)
 
 
 def render_earnings(data: FinancialData, today: date) -> None:
